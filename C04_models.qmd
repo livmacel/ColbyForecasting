@@ -28,81 +28,54 @@ source("setup.R")
 
 # Load data - choose a month and sampling approach
 
-Let's load what we need to build a model for August the model configuration. And we'll need the covariate data.  Notice that we select the covariates that are included in our configuration.
+Let's load what we need to build a model" the configuration and the covariate data.  Notice that we select the covariates that are included in our configuration plus "class".
+
 
 ```{r load_data}
-model_input = read_model_input(scientificname = "Mola mola", 
-                               mon = "Aug")
-cfg = read_configuration(version = "Aug", path = data_path("models"))
-db = brickman_database()
-covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon"))|>
-  select(all_of(cfg$keep_vars))
+cfg = read_configuration(scientificname = "Mola mola", version = "v1")
+model_input = read_model_input(scientificname = "Mola mola", version = "v1") |>
+  select(all_of(c("class", cfg$keep)))
 ```
 
-Of course we need covariates for August only, for this we can use a function we prepared earlier, `prep_model_data()`.  Note the we specifically ask for a plain table which means we are dropping the spatial information for now.  Also, we select only the variables required in the configuration, plus the `class` label.
+# Splitting the data into groups
 
-```{r august_data}
-all_data = prep_model_data(model_input, 
-                           month = "Aug",
-                           covars = covars, 
-                           form = "table") |>
-  select(all_of(c("class", cfg$keep_vars)))
-all_data
+Here we want to split the data into two groups: data for training the model during creation and data for testing the model after we have created it. We'll aim for 80% of the data to train on and reserving 20% of the data for later testing. 
+
+After that, we want to split the **training** data so that we have groups, or "folds", across the spatial domain. This will look approximately like a checkerboard where we (potentially) have a balance of observations and background represented, but it is possible to have strong imbalance in any of the checkerboard squares. That's OK.
+
+## Initial split into training and testing groups
+
+```{r initial_split}
+model_input_split = spatial_initial_split(model_input, 
+                        prop = 1 / 5,     # 20% for testing
+                        strategy = spatial_block_cv) # see ?spatial_block_cv
+model_input_split
 ```
 
-# Split the data set into testing and training data sets
+We can see that there are 5 times more points (observations and background) reserved for training.  Now we can look at the spatial distribution of the two groups.
 
-We will split out a random sample of our dataset to a larger set used for training the model, and a smaller set we withhold to use for later testing of the model.  Since we have labeled data ("presence" and "background") we want to be sure we sample these in proportion, for that we'll indicate that the data are stratified (into just two groups). Let's first determine what the proportion is before splitting.
-
-```{r prop_variables}
-# A little function to compute the ratio of presences to background
-# @param x table with a "class" column
-# @return numeric ratio presences/background
-get_ratio = function(x){
-  counts = count(x, class)
-  np = filter(counts, class == "presence") |> pull(n)
-  nb = filter(counts, class == "background") |> pull(n)
-  return(np/nb)
-}
-
-cat("ratio of presence/background in full data set:", get_ratio(all_data), "\n")
+```{r initial_split_plot}
+autoplot(model_input_split)
 ```
 
-Now let's make the split with the training set comprising 75% of `all_data`. Note that we specifically identify `class` as the `strata` (or grouping) variable.
+## Split the training group into regional folds
 
-```{r split}
-split_data = initial_split(all_data, 
-                           prop = 3/4,
-                           strata = class)
-split_data
-```
-It prints the counts of the training data, the testing data and the entire data set. We can extract the training data and testing data using the `training()` and `testing()` functions.  Let's check the ratios for those..
+Next we take just the **training** data and split that into a set cross-validation folds.  We do this to improve our model by making multiple spatially distributed training mini-datasets.
 
-```{r check_strata}
-cat("ratio of presence/background in training data:", 
-    training(split_data) |> get_ratio(), "\n")
-
-cat("ratio of presence/background in testing data:", 
-    testing(split_data) |> get_ratio(), "\n")
+```{r cv_training}
+tr_data = training(model_input_split)
+cv_tr_data <- spatial_block_cv(tr_data,
+  v = 5,     
+  cellsize = grid_cellsize(model_input),
+  offset = grid_offset(model_input) + 0.00001
+)
+autoplot(cv_tr_data)
 ```
 
-OK! The samples observed the original proportion of presence/background.
-
-> Note!  Did you notice that the function is called `initial_split()`, which implies a subsequent split - what do you suppose that is about? 
-
-# Create a workflow
-
-[workflows](https://workflows.tidymodels.org/) are containers for storing the data pre-processing steps and model specifications.  Not too long ago it was quite a challenge to to keep track of all the bits and pieces required to make good forecasts. The advent of `workflows` greatly simplifies the process.  A `workflow` will house two important items for us: a recipe and a model.  For now, we'll create an empty workflow, then add to it as needed.  At the very end, we'll save the workflow.
-
-```{r make_workflow}
-wflow = workflow()
-```
-
-That's it!
 
 # Build a recipe
 
-The first thing we'll add tot he workflow is a `recipe.` A `recipe` is a blueprint that guides the data handling and modeling process.
+A `recipe` is a blueprint that guides the data handling and modeling process.
 
 A recipe at a bare minimum needs to know two things: what data it has to work with and what is the relationship among the variables within the data.  The latter is expressed as a formula, very similar to how we specify the formula of a line with `y = mx + b` or a parabola `y = ax^2 + bx + c`.
 
@@ -116,36 +89,28 @@ In our case we have the outcome is an prediction of `class` it is a function of 
 In the case here where the outcome (`class`) is a function of all other variables in the table, we have a nice short hand.  `class ~ .` where the dot means "every other variable".
 :::
 
-First we fish out of our split data the training data, and then drop the spatial information.
 
-```{r tr_data}
-tr_data = training(split_data)
-tr_data
-```
+Now we make the recipe. Note that no computation takes place. Technically, `recipe()` only needs a small subset of the data set to establish the names and data types of the predictor and outcome variables. Just one row would suffice. That underscores that a recipe is simply building a template.  
 
-Now we make the recipe. Note that no computation takes place.
-
-::: {.callout-note}
-Technically, `recipe()` only needs a small subset of the data set to establish the names and data types of the predictor and outcome variables. Just one row would suffice. That underscores that a recipe is simply building a template.  
-:::
 
 ```{r recipe}
-rec = recipe(class ~ ., data = slice(tr_data,1))
+one_row_of_training_data = dplyr::slice(tr_data,1)
+rec = recipe(one_row_of_training_data, formula = class ~ .)
 rec
 ```
-This print out provides a very high level summary - all of the details are glossed over. To get a more detailed summary use the `summary()` function.
+This print out provides a very high level summary - all of the details are glossed over. To get a more detailed summary use the `summary()` function.  Note that the coordinates (longitude and latitude) are detected and labeled as `coords` and not predictors. There are ways around that if you need to use longitude or latitude as predictor variables.
 
 ```{r recipe_summary}
 summary(rec)
 ```
 
-Each variable in the input is assigned a role: "outcome" or "predictor".  The latter are the variables used in the creation of the model. There are other types of roles, (see `?recipe`) including "case_weight" and "ID", and others can be defined as needed. Some are used in building the model, others are simply ride along and don't change the model outcome.
+Each variable in the input is assigned a role: "outcome", "coords" or "predictor".  The latter are the variables used in the creation of the model. There are other types of roles, (see `?recipe`) including "case_weight" and "ID", and others can be defined as needed. Some are used in building the model, others are simply ride along and don't change the model outcome.
 
 ## Modifying the recipe with steps
 
-Steps are cumulative modifications, and that means the order in which they are added matters.  These steps comprise the bulk of pre-processing steps.
+Steps are cumulative modifications, and that means the order in which they are added matters. These steps comprise the bulk of pre-processing steps.
 
-Some modifications are applied row-by-row.  For example, rows of the input modeling data that have one or more missing values (NAs) can be problematic and they should be removed.
+Some modifications are applied row-by-row. For example, rows of the input modeling data that have one or more missing values (NAs) can be problematic and they should be removed.
 
 Other modifications are to manipulate entire columns. Sometimes the recipes requires subsequent steps *before* the modeling begins in earnest. For example we know from experience that it is often useful to log scale (base 10) depth when working with biological models. If `depth` and `Xbtm` have made it this far, you'll note that each range over 4 or more orders of magnitude. That's not a problem by itself, but it can introduce a bias toward larger values whenever the mean is computed. So, we'll add a step for log scaling these, but only if `depth` and `Xbtm` have made it this far (this may vary by species.)
 
@@ -162,193 +127,177 @@ if ("Xbtm" %in% cfg$keep_vars){
 }
 rec
 ```
+We also need to handle factored covariates, like `month` might factored.  We do so by building in an automated conversion to numeric values.  Oddly, the step function is called `step_dummy()` which simply transforms the month column into a series of columns `Jan`, `Feb`,..., `Dec` where each row's value is 1 for the row's month and 0 for all the other months.
 
-Next we state that we want to **remove** variables that might be highly correlated with other variables. If two variables are highly correlated, they will not provide the modeling system with more information, just redundant information which doesn't neccessarily help. `step_corr()` accepts a variety of arguments specifying which variables to test to correlation including some convenience selectors like `all_numeric()`, `all_string()` and friends.  We want all predictors which happen to all be numeric, so we can use `all_predictors()` or `all_numeric_predictors()`. Specificity is better then generality so let's choose numeric predictors.
-
-:::{.callout-note}
-We have already tested variables for high collinearlity, but here we can add a slightly different filter, high correlation, for the same issue.  Since we have dealt with this already we shouldn't expect that step will change the preprocessing very much.  But it is instructive to see it in action. 
-:::
-
-```{r step_corr}
-#rec = rec |> 
-#  step_corr(all_numeric_predictors())
-#rec
+```{r step_dummy_month}
+if ("month" %in% cfg$keep_vars){
+  rec = rec |>
+    step_dummy(month)
+}
+rec
 ```
 
-## Add the recipe to the workflow
+# Create a workflow
 
-```{r add_recipe}
-wflow = wflow |>
-  add_recipe(rec)
-wflow
+[workflows](https://workflows.tidymodels.org/) are containers for storing the pre-processing steps and model specifications.  Not too long ago it was quite a challenge to to keep track of all the bits and pieces required to make good forecasts. The advent of `workflows` greatly simplifies the process.  A `workflow` will house two important items for us: a list if preprocesssor items like recipes and a list of desired models.  
+
+We haven't discussed which kinds of models to use in any detail, so we'll just pick 4 convenient examples: 
+
+ + glm: [generalized linear model](https://en.wikipedia.org/wiki/Generalized_linear_model)
+ 
+ + rf: [random forest](https://en.wikipedia.org/wiki/Random_forest)
+ 
+ + gbm: [boosted regression trees](http://download.nust.na/pub3/cran/web/packages/dismo/vignettes/brt.pdf)
+ 
+ + maxent: [maximum entropy](https://en.wikipedia.org/wiki/Principle_of_maximum_entropy)
+ 
+For each model type there is a convenient species distribution model specification (`sdm_spec_*`) version designed to handle spatial data. It is here that we specify the hyperparameters to tune.  In general we accept the defaults, but for `random_forest` we ask that we include tuning on the number of trees, too.
+
+```{r make_workflow}
+wflow = workflow_set(
+  preproc = list(default = rec),
+  models = list(
+      glm = sdm_spec_glm(),
+      rf = sdm_spec_rf(trees = tune()), #<-- tune sdm defaults plus trees
+      gbm = sdm_spec_boost_tree(), 
+      maxent = sdm_spec_maxent()) 
+)
 ```
 
-# Build a model
+That's it! Of course, it's just a container of our goodies. Really, it has not done anything other than a few checks.
 
-We are going to build a [random forest "rf"](https://www.geeksforgeeks.org/random-forest-algorithm-in-machine-learning/) model in classification mode which means for us that we have predictions of "presence" or "background". That's just two classes, random forests can predict multiple classes, too. Also, random forests can make regression models which are used for continuous data.  Below we start the model, declare its mode and assign an engine (the package we prefer to use.)  We'll be using the [ranger R pakage](http://imbs-hl.github.io/ranger/).
+## Chosing metrics for measuring how well the models do
 
-## Create the model
+We next chose which metrics to use when evaluating model performance. The authors of the [tidysdm R package](https://evolecolgroup.github.io/tidysdm/) have a preferred set: [Boyce Continuous Index](https://evolecolgroup.github.io/tidysdm/reference/boyce_cont.html), [True Skill Statistic](https://evolecolgroup.github.io/tidysdm/reference/tss_max.html) and [Area Under the Receiver Operator Curve](https://evolecolgroup.github.io/tidysdm/reference/prob_metrics_sf.html).  There are many others we could opt for in addition to these (or to replace these.)  To the default set we'll add [accuracy](https://cran.r-project.org/web/packages/yardstick/vignettes/metric-types.html).
 
-We create a random forest model, declare that it should be run in classification mode (not regression mode), and then specify that we want to use the `ranger` modeling engine (as opposed to, say, the `randForest` engine).  We additionally specify that it should be able to produce probablilites of a class not just the class label.  We also request that it saves bits of info so that we can compare the relative importance of the covariates.
-
-```{r start_rf}
-model = rand_forest(
-             mtry = tune(),
-             trees = tune(),
-             min_n = tune()) |>
-  set_mode("classification") |>
-  set_engine("ranger", 
-             probability = TRUE, 
-             importance = "permutation") 
-model
-```
-Well, that feels underwhelming. We can pass arguments unique to the engine using the `set_args()` function, but, for now we'll accept the defaults.
-
-## Add the model to the workflow
-
-Now we simply add the model to the workflow.
-
-```{r add_model}
-wflow = wflow |>
-  add_model(model)
-wflow
-```
-# Tune the model
-
-
-```{r tune}
-wf = workflow_map(wflow, fn = "tune_grid")
+```{r metrics}
+metrics = sdm_metric_set(yardstick::accuracy)
+metrics
 ```
 
-# Fit the model
+These are analogous to a chef preparing a meal and deciding what tools might be necessary to test what is in the oven: "I'll need a thermometer, a toothpick and maybe a turning fork".
 
-```{r fit_rf}
-fitted_wflow = fit(wflow, data = tr_data)
-fitted_wflow
+# Fit the models to the various recipes
+
+But first... 
+
+## Hyperparmeters? - what the heck?  
+
+> Many models have **hyperparameters** that can’t be learned directly from a single data set when training the model. Instead, we can train many models in a grid of possible hyperparameter values and see which ones turn out best. [from Tidy Models with R](https://www.tidymodels.org/learn/work/tune-svm/)
+
+So they are parameters (knobs) set for each model. These parameters help guide the optimal structure for solving the problem.  Think of an music conductor planning for a concert: what is the right hall for this performance?  How many cellos do we need? Do I have to have a kettle drum? These are structural questions before diving into the actual music to be played.  
+
+In order to figure out the best values to set these parameters to we actually vary them while running the model in "mini-mode" repeatedly and then picking the "best".  For each iteration we provide a small portion of the data, and we test various values that the parameters might take on.
+
+### Iterate to find various hyperparameter sets
+
+Next, we will deploy a function that will take each recipe-model combination and iterator over each of the many-many-many folds (well, 5 in our case) while adjusting the parameters (if any can be adjusted). The results of each iteration will be tracked so we can get a sense of the range and average.  And then we'll run each of those iterations three times and come up with an average for each.  Imagine that this is like a team of minions, each armed with a recipe and model, directing other minions to run the model fitting on each fold.  We are only setting up a grid of 3, which is fine for our class but in practice might be a much higher number.  A systematic and exhaustive "grid" approach works well for small cases, but it can become unwieldy. Other approaches include random sampling and other techniques to lower the computational burden.
+
+```{r fit}
+wflow <- wflow |>
+  workflow_map("tune_grid",
+    resamples = cv_tr_data, 
+    grid = 3,
+    metrics = metrics, 
+    verbose = TRUE)
 ```
-# Making predictions
-
-Predicting is easy with this pattern: `predictions = predict(model, newdata, ...)`  We want to specify that we want probabilites of a particular class being predicted.  In each case we bind to the prediction our original classification, `class`.
-
-## Predict with the training data
-
-First we shall predict with the same data we trained with. The results of this will not really tell us much about our model as it is very circular to predict using the very data used to build the model.  So this next section is more about a first pass at using the tools at your disposal.
-
-```{r predict_train}
-train_pred = predict_table(fitted_wflow, tr_data, type = "prob")
-train_pred
+Here's a quick plot of the outputs, with each metruic being showcased.
+```{r plot_wflow}
+autoplot(wflow)
 ```
+Note that "default_glm" only has one result rather than three.  That is because there are no hyperparameters to tune in general linearized models.
 
-Here the variables prepended with a dot `.` are computed, while the `class` variable is our original. There are many metrics we can use to determine how well this model predicts.  Let's start with the simplest thing... we can make a simply tally of `.pred` and `class`.
 
-```{r count_outcomes}
-count(train_pred, .pred, class)
+### Choose the best set of hyperparameters for each model
+
+What is the best configuration of hyperparameters for each model? Well, for "default_glm" there is only one, so that sort of doesn't count - we chose the only one we have. For the others we have to dig in to figure out which set of hyperparameters is best for each model.  We have written a wrapper function to speed things along; it accepts the workflow set, the full split data object and the path and filename to save the models.
+
+```{r select_best}
+model_fits = workflowset_selectomatic(wflow, model_input_split,
+                                  filename = "Mola_mola-v1-model_fits",
+                                  path = data_path("models"))
+model_fits
 ```
-There false positives and false negatives, but many are correct. Of course, this is predicting with the very data we used to train the model; knowing that this is predicicting on training data with some many misses might not inspire confidence.  But let's explore more.
+So we get back 4 models (that's good).  Let's look at the random forest and pick out the `.metrics`, `.predictions` and `.workflow` columns.  Note that the leading `.` is simply there to let you you that these parts were derived in the `selectomatic` function.  
 
-## Assess the model
 
-Hewre we walk through a number of common assessment tools.  We want to assess a model to ascertain how closely it models reality (or not!) Using the tools is always easy, interpreting the metrics is not always easy.
+### Exploring a single model fit result
 
-### Confusion matrix
+Let's pull out one of the model fits and look at it's parts.
 
-The confusion matrix is the next step beyond a simple tally that we made above.
-
-```{r conf_mat_train}
-train_confmat = conf_mat(train_pred, class, .pred)
-train_confmat
-```
-You'll see this is the same as the simple tally we made, but it comes with handy plotting functionality (shown below).  Note that a perfect model would have the upper left and lower right quadrants fully accounting for all points.  The lower left quadrant shows us the number of false-negatives while the upper right quadrant shows the number of false-positives. 
-
-```{r plot_confmat_train}
-autoplot(train_confmat, type = "heatmap")
-```
-
-### ROC and AUC
-
-The area under the curve ([AUC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve)) of the receiver-operator curve ([ROC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic)) is a common metric.  AUC values range form 0-1 with 1 reflecting a model that faithfully predicts correctly. Technically an AUC value of 0.5 represents a random model (yup, the result of a coin flip!), so values greater than 0.5 and less than 1.0 are expected.
-
-First we can plot the ROC.
-
-```{r plot_roc}
-plot_roc(train_pred, class, .pred_presence)
-```
-
-We can assure you from practical experience that this is an atypical ROC.  Typically they are not smooth, but this smoothness is an artifact of our use of training data. If you really only need the AUC, you can use the `roc_auc()` function directly.
-
-```{r roc_auc}
-roc_auc(train_pred, class,  .pred_presence)
-```
-### Accuracy
-
-Accuracy, much like our simple tally above, tells us what fraction of the predictions are correct.  Not that here we explicitly provide the predicted class label (not the probability.)
-
-```{r accuracy}
-accuracy(train_pred, class, .pred)
+```{r random_forest}
+rf = model_fits |>
+  filter(wflow_id == "default_rf")
+rf
 ```
 
+#### `splits`
+
+These are the allocations of training and testing elements in the original dataset. We can see it looks like the same distribution as our initial split (above).
+
+```{r rf_splits}
+autoplot(rf$splits[[1]])
+```
+
+#### `.metrics`
+
+These are simply the metrics associated with the best set of hyperparameters. We can see the aggregate of the "pre-selection" metrics in the metrics plot earlier.
+
+```{r metrics}
+rf$.metrics[[1]]
+```
+
+#### `.predictions`
+
+Here we can see the **testing** data predictions. Ultimately we are interested in `.pred_class` and `class`, but there's a lot of data to explore in here.  
+
+```{r rf_preds}
+rf$.predictions[[1]]
+```
+
+#### `.workflow`
+
+The workflow is the encapsulation of the model formula form the recipe, the tuned hyperparameters and well as any fitting coefficients for the mode.  When we print it we get a summary statement about the model.
+
+```{r rf_workflow}
+rf$.workflow[[1]]
+```
+
+### Exploring the collection of model fit results
+
+We can make simple collective representations of the models.
+
+#### A table of metrics
+
+We can quickly pull together summary statistics.
+
+```{r model_fit_metrics}
+model_fit_metrics(model_fits)
+```
+
+#### Confusion matrices and accuracy
+
+We can plot confusion matrices and add accuracy.
+
+```{r model_fit_confmat}
+model_fit_confmat(model_fits)
+```
+And finally we can collate plots of Receiver Operator Curves (ROC) from which the Area Under the Curve (AUC) is computed.
+
+```{r model_fit_roc_auc}
+model_fit_roc_auc(model_fits)
+```
 ### Partial dependence plot
 
-Partial dependence reflects the relative contrubution of each variable influence over it's full range of values.  The output is a grid grid of plots showing the relative distribution of the variable (bars) as well as the relative influenceof the variable (line). 
+Partial dependence reflects the relative contribution of each variable influence over it's full range of values.  The output is a grid grid of plots showing the relative distribution of the variable (bars) as well as the relative influence of the variable (line). 
 ```{r pd_plot}
-partial_dependence_plot(fitted_wflow, data = tr_data)
+model_fit_pdp(model_fits, id = "default_glm")
 ```
-
-
-## Predict with the testing data
-
-Finally, we can repeat these steps with the testing data.  This should give use better information than using the training data
-
-### Predict
-
-```{r predict_test}
-test_data = testing(split_data)
-test_pred = predict_table(fitted_wflow, test_data, type = "prob")
-test_pred
-```
-
-### Confusion matrix
-
-```{r conf_mat_test}
-test_confmat = conf_mat(test_pred, class, .pred)
-autoplot(test_confmat, type = "heatmap")
-```
-
-### ROC/AUC
-```{r plot_roc_test}
-plot_roc(test_pred, class, .pred_presence)
-```
-
-This ROC is more typical of what we see in regular practice (although this looks low to a trained eye.)
-
-### Accuracy
-
-```{r accuracy_test}
-accuracy(test_pred, class, .pred)
-```
-
-### Partial Dependence
-```{r pd_plot_test}
-partial_dependence_plot(fitted_wflow, data = test_data)
-```
-
-# Saving recipes and models to disk as a workflow
-
-We can (and should!) save recipes and models to disk for later recall.  We need the recipe because it handle the pre-processing of our covariates, while the model specifies both the form of the model as well as the necessary coefficients. When bundled together for later use we can be assured the the data pre-processing steps and model specifications will be available.  A [workflow](https://workflows.tidymodels.org/) is a container for recipes, models and other parts of the model process.  
-
-Now we can save the workflow container.
-
-```{r save_model}
-write_workflow(fitted_wflow, version = cfg$version, type = get_model_type(fitted_wflow))
-```
-
-You can read it back later with `read_workflow()`.
 
 # Recap
 
-We have built a random forest model using tools from the [tidymodels universe](https://www.tidymodels.org/).  After reading in a suite of data, we split our data into training and testing sets, witholding the testing set until the very end.  We looked a variety of metrics including a simple tally, a confusion matrix, ROC and AUC, accuracy and partial dependencies.  We saved the recipe and model together in a special container, called a workflow, to a file.
+We have built 4 tyoes of models using tools from the [tidymodels universe](https://www.tidymodels.org/).  After reading in a suite of data, we split our data into training and testing sets, withholding the testing set until the very end.  We looked a variety of metrics including a confusion matrix, ROC and AUC, accuracy and partial dependencies.  We saved the recipe and model together in a special container, called a workflow set, to a file.
 
 # Coding Assignment
 
-Use the [iterations tutorial](https://bigelowlab.github.io/handytandy/iterations.html) to build a workflow for each month using one or both of your background selection methods.  Save each workflow in the `models` directory.  You should end up with up to 12 workflows, but we know that observations can be highly seasonal so you may find you can't make models for some months.
 
