@@ -71,9 +71,6 @@ This schedule has built in flexibility. Changes will be noted.
 
 - Lecture: Forecasting Introduction
 
-- R Tutorial:
-  [Coding](https://bigelowlab.github.io/ColbyForecasting/C00_coding.html)
-
 - Reading assignment for next time: The Gulf of Maine articles in this
   [folder](https://github.com/BigelowLab/ColbyForecasting/tree/main/reading/Woodard)
   And this paper [Pershing
@@ -90,10 +87,10 @@ This schedule has built in flexibility. Changes will be noted.
   paper](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/RecordEtal2025inreview.pdf)
 
 - R Tutorial:
-  [Observations](https://bigelowlab.github.io/ColbyForecasting/C01_observations.html)
+  [Coding](https://bigelowlab.github.io/ColbyForecasting/C00_coding.html)
 
-- R Tutorial: [Background
-  Points](https://bigelowlab.github.io/ColbyForecasting/C02_background.html)
+- R Tutorial:
+  [Observations](https://bigelowlab.github.io/ColbyForecasting/C01_observations.html)
 
 - Reading assignment for next time: Monday we have a panel with three early career scientists who work on forecasting. Each will give a presentation of their work. You assignment is to read these papers ahead of time and to ask at least one question during the question session.[Ross 2021](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Ross2021.pdf)
 [Helmuth 2002](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Helmuth2002.pdf)
@@ -114,6 +111,9 @@ This schedule has built in flexibility. Changes will be noted.
 - Lecture: Forecasting Methodologies
 
 - Discussion: Forecasting unintended consequences
+
+- R Tutorial: [Background
+  Points](https://bigelowlab.github.io/ColbyForecasting/C02_background.html)
 
 - R Tutorial:
   [Covariates](https://bigelowlab.github.io/ColbyForecasting/C03_covariates.html)
