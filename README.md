@@ -53,7 +53,9 @@ forecasts, to understanding the complexities of forecasts’ impacts.
 
 ------------------------------------------------------------------------
 
-## **SCHEDULE** (changes will be noted)
+## **SCHEDULE** 
+
+This schedule has built in flexibility. Changes will be noted.
 
 ### 1. Tuesday Jan 6
 
@@ -69,44 +71,39 @@ forecasts, to understanding the complexities of forecasts’ impacts.
 
 - Lecture: Forecasting Introduction
 
-- R Tutorial:
-  [Coding](https://bigelowlab.github.io/ColbyForecasting/C00_coding.html)
-
 - Reading assignment for next time: The Gulf of Maine articles in this
   [folder](https://github.com/BigelowLab/ColbyForecasting/tree/main/reading/Woodard)
   And this paper [Pershing
   2020](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Pershing.elementa.2020.00076.pdf)
+  The Pershing paper will be a cornerstone for our course projects, so take a careful look at that one.
   
 ### 2. Thurs Jan 8
 
 - Lecture: Ocean Science / Gulf of Maine Primer
 
 - Discussion: [Forecast
-  cards](https://docs.google.com/spreadsheets/d/1gPwJF2XAKD9WftHAgRY9X_CXpn-S0gQFDZeF7yxdIGo/edit?gid=0#gid=0)
+  cards](https://docs.google.com/spreadsheets/d/19dHtW6VxCXAzko9deqdjYOKp_4KQO96rSsBxxxeN8Yc/edit?gid=0#gid=0)
   and [Table 1 in this
   paper](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/RecordEtal2025inreview.pdf)
 
 - R Tutorial:
+  [Coding](https://bigelowlab.github.io/ColbyForecasting/C00_coding.html)
+
+- R Tutorial:
   [Observations](https://bigelowlab.github.io/ColbyForecasting/C01_observations.html)
 
-- Reading assignment for next time: [Ross 2021](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Ross2021.pdf)
-[Briscoe 2022](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Briscoe2022.pdf)
+- Reading assignment for next time: Monday we have a panel with three early career scientists who work on forecasting. Each will give a presentation of their work. You assignment is to read these papers ahead of time and to ask at least one question during the question session.[Ross 2021](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Ross2021.pdf)
+[Helmuth 2002](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Helmuth2002.pdf)
 [Mollomo
   1998](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Mollomo1998.pdf)
-
-- Discussion: Where does our data come from?
-
-- R Tutorial: [Background
-  Points](https://bigelowlab.github.io/ColbyForecasting/C02_background.html)
 
 ### 3. Monday Jan 12
 
 - Panel: Early career scientists in Ocean Forecasting
 
-- R Tutorial:
-  [Covariates](https://bigelowlab.github.io/ColbyForecasting/C03_covariates.html)
+- Discussion: Where does our data come from?
 
-- Reading assignment for next time: [Brickman
+- Reading assignment for next time:  [Brickman
   2020](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Brickman.elementa.2020.20.00055.pdf)
 
 ## 4. Tuesday Jan 13
@@ -115,8 +112,11 @@ forecasts, to understanding the complexities of forecasts’ impacts.
 
 - Discussion: Forecasting unintended consequences
 
+- R Tutorial: [Background
+  Points](https://bigelowlab.github.io/ColbyForecasting/C02_background.html)
+
 - R Tutorial:
-  [Modeling](https://bigelowlab.github.io/ColbyForecasting/C04_models.html)
+  [Covariates](https://bigelowlab.github.io/ColbyForecasting/C03_covariates.html)
 
 - Reading assignment for next time: [(a) What is algorithmic
   bias](https://bdtechtalks.com/2018/03/26/racist-sexist-ai-deep-learning-algorithms/),
@@ -130,23 +130,36 @@ forecasts, to understanding the complexities of forecasts’ impacts.
 - Lecture: Algorithm Accountability
 
 - R Tutorial:
-  [Predicting](https://bigelowlab.github.io/ColbyForecasting/C05_prediction.html)
+  [Modeling](https://bigelowlab.github.io/ColbyForecasting/C04_models.html)
 
 - Reading assignment for next time: TBD
 
-## Monday Jan 23
+## Monday Jan 19
 
 No class, [Dr. Martin Luther King
 Day](https://en.wikipedia.org/wiki/Martin_Luther_King_Jr._Day)
 
 ## 6. Tuesday Jan 20
 
-- R Tutorial: Spillover and catch-up
+- R Tutorial:
+  [Predicting](https://bigelowlab.github.io/ColbyForecasting/C05_prediction.html)
 
 - Reading assignment for next time: [Hobday
   2020](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Hobday2020.pdf)
 
-## 7. Thursday Jan 27 [Project presentations](https://github.com/BigelowLab/ColbyForecasting/blob/main/assignments/presentation.md)
+## 7. Thursday Jan 22
+
+ - TBD
+
+## 8. Monday Jan 26
+
+- Making your own [Markdown documents](https://rmarkdown.rstudio.com/)
+
+- R Tutorial: Additional time for project help
+
+## 9. Tuesday Jan 27 
+
+[Project presentations](https://github.com/BigelowLab/ColbyForecasting/blob/main/assignments/presentation.md)
 
 We will have a mini scientific conference where you will present your
 project as you might do at a scientific conference. Plan your
@@ -160,13 +173,9 @@ discussion that attempts to bring this collection of projects together
 into an integrated description of what the Gulf of Maine might look like
 in future decades.
 
-## 8. Mon Jan 26
+## 10. Thursday Jan 29
 
-- Making your own [Markdown documents](https://rmarkdown.rstudio.com/)
-
-- R Tutorial: Additional time for project help
-
-## 9. Tuesday Jan 27
+- Continuation of presentations.
 
 - Final project due
   - A ~2,000 word write-up of your Gulf of Maine projection. [Details
