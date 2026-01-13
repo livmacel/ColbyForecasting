@@ -110,7 +110,7 @@ This schedule has built in flexibility. Changes will be noted.
 
 - Lecture: Forecasting Methodologies
 
-- Discussion: Data sources
+- Discussion: Data sources(https://docs.google.com/presentation/d/1PpfSl6OvxwIxgT1FKNLdmkDN_NPAM1BXypjVqHkhvxo/edit?slide=id.p#slide=id.p)
 
 - R Tutorial: [Background
   Points](https://bigelowlab.github.io/ColbyForecasting/C02_background.html)
