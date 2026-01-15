@@ -136,6 +136,7 @@ This schedule has built in flexibility. Changes will be noted.
   [Modeling](https://bigelowlab.github.io/ColbyForecasting/C04_models.html)
 
 - Reading assignment for next time: [Pichler 2022](https://github.com/BigelowLab/ColbyForecasting/blob/main/reading/Pichler2022.pdf)
+- Optional assignment: Work on the introduction for the final writeup. Recall the orienting questions: What is your species? Why is it important? What are some of the management, industry, or conservation decisions that could benefit from a forecast? If you send me text with citations by Monday, I'll get feedback to you over the course of the week.
 
 ## Monday Jan 19
 
