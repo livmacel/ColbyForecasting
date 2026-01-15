@@ -1,27 +1,100 @@
+source("setup.R")
 
-read_observations = function(scientificname = "Mola mola",
-                             minimum_year = 1970, 
-                             ...){
-  
-  #' Read raw OBIS data and then filter it
-  #' 
-  #' @param scientificname chr, the name of the species to read
-  #' @param minimum_year num, the earliest year of observation to accept or 
-  #'   set to NULL to skip
-  #' @param ... other arguments passed to `read_obis()`
-  #' @return a filtered table of observations
-  
-  # Happy coding!
-  
-  # read in the raw data
-  x = read_obis(scientificname, ...) |>
-    dplyr::mutate(month = factor(month, levels = month.abb))
-  
-  # if the user provided a non-NULL filter by year
-  if (!is.null(minimum_year)){
-    x = x |>
-      filter(year >= minimum_year)
-  }
-  
-  return(x)
-}
+read_observations = function(scientificname = "Phoca vitulina",
+minimum_year = 1970, 
+...)
+
+SPECIES = "Phoca vitulina"
+
+obs = read_obis(SPECIES)
+obs
+
+dim_start = dim(obs)
+dim_start
+
+obs |> count(basisOfRecord)
+
+human = obs |>
+  filter(basisOfRecord == "HumanObservation") |>
+  slice(1) |>
+  browse_obis()
+
+preserved = obs |>
+  filter(basisOfRecord == "PreservedSpecimen") |>
+  slice(1) |>
+  browse_obis()
+
+checklist = obs |>
+  filter(basisOfRecord == "NomenclaturalChecklist") |>
+  slice(1) |>
+  browse_obis()
+
+occurrence = obs |>
+  filter(basisOfRecord == "Occurrence") |>
+  slice(1) |>
+  browse_obis()
+
+summary(obs)
+
+obs = obs |>
+  filter(!is.na(eventDate))
+summary(obs)
+
+obs |>
+  filter(is.na(individualCount)) |>
+  slice(1) |>
+  browse_obis()
+
+obs = obs |>
+  filter(!is.na(individualCount))
+summary(obs)
+
+obs |>
+  filter(individualCount == 25) |>
+  browse_obis()
+
+ggplot(data = obs,
+       mapping = aes(x = year)) + 
+  geom_bar() + 
+  geom_vline(xintercept = c(1982, 2013), linetype = "dashed") + 
+  labs(title = "Counts per year")
+
+obs = obs |>
+  filter(year >= 1970)
+dim(obs)
+
+ggplot(data = obs,
+       mapping = aes(x = month)) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+
+obs = obs |>
+  mutate(month = factor(month, levels = month.abb))
+
+ggplot(data = obs,
+       mapping = aes(x = month)) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+
+db = brickman_database() |>
+  filter(scenario == "STATIC", var == "mask")
+mask = read_brickman(db)
+mask
+
+plot(mask, breaks = "equal", axes = TRUE, reset = FALSE)
+plot(st_geometry(obs), pch = ".", add = TRUE)
+
+hitOrMiss = extract_brickman(mask, obs)
+hitOrMiss
+
+count(hitOrMiss, value)
+
+dim_start = dim(obs)
+obs = obs |>
+  filter(!is.na(hitOrMiss$value))
+dim_end = dim(obs)
+
+dropped_records = dim_start[1] - dim_end[1]
+dropped_records
+
+return(x)
