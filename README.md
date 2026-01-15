@@ -130,7 +130,7 @@ This schedule has built in flexibility. Changes will be noted.
 
 - Lecture: Algorithm Accountability
 
-- Discussion: Forecasting unintended consequences
+- Discussion: Biases in algorithms
 
 - R Tutorial:
   [Modeling](https://bigelowlab.github.io/ColbyForecasting/C04_models.html)
