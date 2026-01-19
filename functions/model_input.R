@@ -1,5 +1,5 @@
 
-read_model_input = function(scientificname = "Mola mola",
+read_model_input = function(scientificname = "Phoca vitulina",
                             version = NULL,
                             log_me = NULL,
                             form = c("table", "sf")[2],
@@ -44,7 +44,7 @@ read_model_input = function(scientificname = "Mola mola",
 }
 
 write_model_input = function(x,
-                             scientificname = "Mola mola",
+                             scientificname = "Phoca vitulina",
                              version = NULL,
                              path = data_path("model_input")){
   
