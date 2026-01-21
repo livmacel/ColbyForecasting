@@ -1,0 +1,111 @@
+---
+title: "Longfin inshore squid"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r my_setup, echo=FALSE}
+source("/home/oamace28/ColbyForecasting/setup.R")
+```
+I decided to add [Longfin squid](https://en.wikipedia.org/wiki/Longfin_inshore_squid) as my second species. They are one of the preys of Harbor seals, my primary species. 
+
+```{r Squid, echo=FALSE}
+Squid = read_observations(scientificname = "Doryteuthis pealeii")
+summary(Squid)
+```
+
+```{r Monthly_code_block, echo=FALSE}
+Squid = Squid |>
+  mutate(month = factor(month, levels = month.abb))
+
+ggplot(data = Squid,
+       mapping = aes(x = month)) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+```
+
+```{r mask, echo=FALSE}
+db = brickman_database() |>
+  filter(scenario == "STATIC", var == "mask")
+mask = read_brickman(db)
+mask
+```
+
+```{r mask_plot, echo=FALSE}
+plot(mask, breaks = "equal", axes = TRUE, reset = FALSE)
+plot(st_geometry(Squid), pch = ".", add = TRUE)
+```
+
+```{r bias_map, echo=FALSE}
+bias_map = rasterize_point_density(Squid, mask) # <-- note the original observations
+coast = read_coastline() # I added this
+ggplot() +
+  geom_stars(data = bias_map, aes(fill = count)) +
+  scale_fill_viridis_b(na.value = "transparent") +
+  geom_sf(data = coast, col = "orange") + 
+  labs(x = "Longitude", y = "Latitude", title = "Bias map using all observations")
+```
+
+```{r sample_background, echo=FALSE}
+thinned_Squid = sapply(month.abb,
+               function(mon){ 
+                 temp_x = Squid |> filter(month == mon)
+                 if(nrow(temp_x) == 0) return(NULL)
+                 thin_by_cell(temp_x, mask)
+               }, simplify = FALSE) |>
+  dplyr::bind_rows() 
+
+nback_avg = 811
+
+obsbkg = sapply(month.abb,
+    function(mon){ 
+      temp_x = thinned_Squid |> filter(month == mon)
+      if (nrow(temp_x) == 0) return(NULL)
+      sample_background(temp_x, # <- just this month
+                       bias_map,
+                       method = "bias",  # <-- it needs to know it's a bias map
+                       return_pres = TRUE, # <-- give me the obs back, too
+                       n = nback_avg) |>   # <-- how many points
+        mutate(month = mon, .before = 1)
+    }, simplify = FALSE) |>
+  bind_rows() |>
+  mutate(month = factor(month, levels = month.abb))
+```
+
+```{r count_points, echo=FALSE}
+count(st_drop_geometry(obsbkg), month, class)
+```
+
+```{r plot_presence_bkgd, echo=FALSE}
+ggplot() +
+  geom_sf(data = obsbkg, 
+          mapping = aes(col = class),
+          alpha =  0.4, shape = "circle small", size = 1) +
+  geom_sf(data = coast, col = "orange")  + 
+  labs(x = "Longitude", y = "Latitude", title = "Presence and Background of Longfin Squid") +   
+  theme_bw() +  # <- make a simple white background
+  scale_fill_okabe_ito() +  # <-- colorblind friendly for N Record
+  facet_wrap(~month)
+```
+
+```{r variables, echo=FALSE}
+db = brickman_database() |>
+  dplyr::filter(scenario == "PRESENT", interval == "mon")
+present = read_brickman(db)
+keep = filter_collinear(present, method = "cor_caret", cutoff = 0.65)
+drop_me = attr(keep, "to_remove")
+keep = c("depth", "month", keep)
+model_input = read_model_input(scientificname = "Doryteuthis pealeii")
+present = read_brickman(add = c("depth"))
+variables = extract_brickman(present, model_input, form = "wide")
+variables = variables |>
+  #mutate(class = model_input$class) |>    # the $ extracts a column 
+  select(-.id)
+```
+
+```{r p_b_plot, echo=FALSE}
+plot_pres_vs_bg(variables |> select(-month), "class")
+```
